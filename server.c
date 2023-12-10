@@ -6,6 +6,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+/*
+ * Print error message and exit.
+ * @param[in] msg The message to print to console.
+ */
 void error(const char *msg)
 {
 	perror(msg);
