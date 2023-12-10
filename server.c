@@ -49,27 +49,54 @@ int main(int argc, char *argv[])
 	if(newsockfd < 0)
 		error("Error on Accept.");
 
-	while(1)
+	int num1, num2, ans, choice;
+
+S:	n = write(newsockfd, "Enter Number 1 : ", strlen("Enter Number 1 : "));
+	if(n < 0)
+		error("Error writing to socket.");
+
+	read(newsockfd, &num1, sizeof(int));
+	printf("Client - Number 1 is : %d\n", num1);
+
+	n = write(newsockfd, "Enter Number 2 : ", strlen("Enter Number 2 : "));
+	if(n < 0)
+		error("Error writing to socket.");
+
+	read(newsockfd, &num2, sizeof(int));
+	printf("Client - Number 2 is : %d\n", num2);
+
+	n = write(newsockfd, "Enter your choice : \n1.Addition\n2.Subtraction\n3.Multiplication\n4.Division\n5.Exit\n", strlen("Enter your choice : \n1.Addition\n2.Subtraction\n3.Multiplication\n4.Division\n5.Exit\n"));
+	if(n < 0)
+		error("Error writing to socket.");
+
+	read(newsockfd, &choice, sizeof(int));
+	printf("Client - Choice is : %d\n", choice);
+
+	switch(choice)
 	{
-		bzero(buffer, 255);
-		n = read(newsockfd, buffer, 255);
-		if(n < 0)
-			error("Error on reading.");
-
-		printf("Client : %s\n", buffer);
-		bzero(buffer, 255);
-		fgets(buffer, 255, stdin);
-		
-		n = write(newsockfd, buffer, strlen(buffer));
-		if(n < 0)
-			error("Error on writing.");
-
-		int i = strncmp("Bye", buffer, 3);
-		if (i == 0)
+		case 1:
+			ans = num1 + num2;
+			break;
+		case 2:
+			ans = num1 - num2;
+			break;
+		case 3:
+			ans = num1 * num2;
+			break;
+		case 4:
+			ans = num1 / num2;
+			break;
+		case 5:
+			goto Q;
 			break;
 	}
 
-	close(newsockfd);
+	write(newsockfd, &ans, sizeof(int));
+	
+	if(choice != 5)
+		goto S;
+
+Q:	close(newsockfd);
 	close(sockfd);
 
 	return 0;
