@@ -15,6 +15,7 @@ argv[2] portno
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <ctype.h>
 
 void error(const char *msg)
 {
@@ -33,7 +34,7 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, "usage %s hostname port\r\n", argv[0]);
 		exit(1);
-	}
+		}
 	portno = atoi(argv[2]);
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if(sockfd < 0)
@@ -53,24 +54,33 @@ int main(int argc, char *argv[])
 	if(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
 		error("Connection Failed");
 
-	while(1)
+	bzero(buffer, 255);
+
+	FILE *f;
+	int words = 0;
+
+	char c;
+
+	f = fopen("glad.txt", "r");
+	while((c = getc(f)) != EOF)
 	{
-		bzero(buffer, 255);
-		fgets(buffer, 255, stdin);
-		n = write(sockfd, buffer, strlen(buffer));
-		if(n < 0)
-			error("Error on writing.");
-
-		bzero(buffer, 255);
-		n = read(sockfd, buffer, 255);
-		if(n <0)
-			error("Error on reading.");
-		printf("Server: %s", buffer);		
-
-		int i = strncmp("Bye", buffer, 3);
-		if(i == 0)
-		break;
+		fscanf(f, "%s", buffer);
+		if(isspace(c) || c=='\t')
+			words++;
 	}
+	
+	write(sockfd, &words, sizeof(int));
+	rewind(f);
+
+	char ch;
+	while(ch != EOF)
+	{
+		fscanf(f, "%s", buffer);
+		write(sockfd, buffer, 255);
+		ch = fgetc(f);
+	}
+
+	printf("The file has been successfully sent. Thank you.");
 
 	close(sockfd);
 	return 0;
