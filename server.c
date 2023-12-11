@@ -49,25 +49,32 @@ int main(int argc, char *argv[])
 	if(newsockfd < 0)
 		error("Error on Accept.");
 
-	while(1)
+	int data[10];
+	printf("Please input 4 bits of data\n");
+	scanf("%d", &data[0]);
+	scanf("%d", &data[1]);
+	scanf("%d", &data[2]);
+	scanf("%d", &data[4]);
+
+	//calculation of even parity for encoding
+	data[6] = data[4]^data[2]^data[0];
+	data[5] = data[4]^data[1]^data[0];
+	data[3] = data[2]^data[1]^data[0];
+
+	//send the encoded data to client
+	for(int i = 0; i < 7; i++)
 	{
-		bzero(buffer, 255);
-		n = read(newsockfd, buffer, 255);
+		n = write(newsockfd, &data[i], sizeof(int));
 		if(n < 0)
-			error("Error on reading.");
-
-		printf("Client : %s\n", buffer);
-		bzero(buffer, 255);
-		fgets(buffer, 255, stdin);
-		
-		n = write(newsockfd, buffer, strlen(buffer));
-		if(n < 0)
-			error("Error on writing.");
-
-		int i = strncmp("Bye", buffer, 3);
-		if (i == 0)
-			break;
+			printf("Errorwhile transmitting the data\n");
 	}
+
+	printf("The data sent is: ");
+	for(int i = 0; i < 7; i++)
+	{
+		printf("%d", data[i]);
+	}
+
 
 	close(newsockfd);
 	close(sockfd);

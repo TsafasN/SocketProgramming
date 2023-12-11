@@ -53,24 +53,56 @@ int main(int argc, char *argv[])
 	if(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
 		error("Connection Failed");
 
-	while(1)
+	int dataatrec[10];
+	int test[10];
+	int p, p1, p2, p4;
+
+	printf("The data received is: ");
+	for(int i = 0; i < 7; i++)
 	{
-		bzero(buffer, 255);
-		fgets(buffer, 255, stdin);
-		n = write(sockfd, buffer, strlen(buffer));
+		n = read(sockfd, &dataatrec[i], sizeof(int));
 		if(n < 0)
-			error("Error on writing.");
-
-		bzero(buffer, 255);
-		n = read(sockfd, buffer, 255);
-		if(n <0)
-			error("Error on reading.");
-		printf("Server: %s", buffer);		
-
-		int i = strncmp("Bye", buffer, 3);
-		if(i == 0)
-		break;
+			error("Error receiving data.");
+		printf("%d", dataatrec[i]);
 	}
+
+	printf("Please enter the data to be tested.\n");
+	for(int i = 0; i < 7; i++)
+	{
+		scanf("%d", &test[i]);
+	}
+
+	p1 = test[6]^test[4]^test[2]^test[0];
+	p2 = test[5]^test[4]^test[1]^test[0];
+	p4 = test[3]^test[2]^test[1]^test[0];
+
+	p = (4 * p4) + (2 * p2) + p1;
+
+	for(int i = 0; i < 7; i++)
+	{
+		printf("%d", test[i]);
+	}
+
+	if(p == 0)
+	{
+		printf("No error!");
+	}
+	else
+	{
+		printf("\nThe error is at position %d", p);
+		printf("The data for testing is");
+		if(test[7-p] == 0)
+			test[7-p] = 1;
+		else
+			test[7-p] = 0;
+
+		for(int i = 0; i < 7; i++)
+		{
+			printf("%d", test[i]);
+		}
+	}
+
+
 
 	close(sockfd);
 	return 0;
