@@ -59,25 +59,22 @@ int main(int argc, char *argv[])
 	if(newsockfd < 0)
 		error("Error on Accept.");
 
-	while(1)
+	FILE *fp;
+
+	int ch = 0;
+	fp = fopen("glad_received.txt", "w");
+
+	int words;
+	read(newsockfd, &words, sizeof(int));
+
+	while(ch != words)
 	{
-		bzero(buffer, 255);
-		n = read(newsockfd, buffer, 255);
-		if(n < 0)
-			error("Error on reading.");
-
-		printf("Client : %s\n", buffer);
-		bzero(buffer, 255);
-		fgets(buffer, 255, stdin);
-		
-		n = write(newsockfd, buffer, strlen(buffer));
-		if(n < 0)
-			error("Error on writing.");
-
-		int i = strncmp("Bye", buffer, 3);
-		if (i == 0)
-			break;
+		read(newsockfd, buffer, 255);
+		fprintf(fp, "%s ", buffer);
+		ch++;
 	}
+
+	printf("The file has been received successfully. It is saved by the name glad_received.txt.");
 
 	close(newsockfd);
 	close(sockfd);
