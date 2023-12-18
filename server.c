@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -79,34 +80,36 @@ int main(int argc, char *argv[])
 	//When a connection arrives, open a new socket to communicate with it
 	struct sockaddr_in clientAddress;
 	int clientAddressSize = sizeof(struct sockaddr_in);
-	int clientAddressFD = accept(serverSocketFD,  (struct sockaddr *) &clientAddress, &clientAddressSize);
-	if(clientAddressFD < 0)
+	int clientSocketFD = accept(serverSocketFD,  (struct sockaddr *) &clientAddress, &clientAddressSize);
+	if(clientSocketFD < 0)
 	{
 		error("Error on Accept.");
 	}
 	printf("Accepted connection on server socket listen.\n");
 	printf("Opened client address file descriptor.\n");
 
-	char buffer[255];
-	FILE *fp;
+	char buffer[1024];
 
-	int ch = 0;
-	fp = fopen("glad_received.txt", "w");
-
-	int words;
-	read(clientAddressFD, &words, sizeof(int));
-
-	while(ch != words)
+	while(true)
 	{
-		read(clientAddressFD, buffer, 255);
-		fprintf(fp, "%s ", buffer);
-		ch++;
+		ssize_t amountReceived = recv(clientSocketFD, buffer, 1024, 0);
+
+		if(amountReceived > 0)
+		{
+			buffer[amountReceived] = 0;
+			printf("Response was %s\n", buffer);
+		}
+
+		if(amountReceived == 0)
+		{
+			break;		
+		}
 	}
 
-	printf("The file has been received successfully. It is saved by the name glad_received.txt.\n");
 
-	close(clientAddressFD);
-	close(serverSocketFD);
+
+	close(clientSocketFD);
+	shutdown(serverSocketFD, SHUT_RDWR);
 
 	return 0;
 }

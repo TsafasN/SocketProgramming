@@ -9,6 +9,7 @@ argv[2] portno
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
@@ -78,34 +79,26 @@ int main(int argc, char *argv[])
 		error("Connection Failed");
 	}
 	
-	char buffer[256];
-	bzero(buffer, 255);
-
-	FILE *f;
-	int words = 0;
-
-	char c;
-
-	f = fopen("glad.txt", "r");
-	while((c = getc(f)) != EOF)
-	{
-		fscanf(f, "%s", buffer);
-		if(isspace(c) || c=='\t')
-			words++;
-	}
+	char *line = NULL;
+	size_t lineSize = 0;
+	printf("type and we will send (type exit)...\n");
 	
-	write(socketFD, &words, sizeof(int));
-	rewind(f);
-
-	char ch;
-	while(ch != EOF)
+	while(true)
 	{
-		fscanf(f, "%s", buffer);
-		write(socketFD, buffer, 255);
-		ch = fgetc(f);
-	}
+		printf("\n");
 
-	printf("The file has been successfully sent. Thank you.");
+		ssize_t charCount = getline(&line, &lineSize, stdin);
+
+		if (charCount > 0)
+		{
+			if(strcmp(line,"exit\n") == 0)
+			{
+				break;
+			}
+
+			ssize_t amountWasSent = send(socketFD, line, charCount, 0);
+		}
+	}
 
 	close(socketFD);
 	return 0;
