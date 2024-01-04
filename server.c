@@ -14,6 +14,7 @@
 
 struct sockaddr_in* createIPv4Address(char *ip, int port);
 
+
 int createTCPIpv4Socket();
 
 int createTCPIpv4Socket()
@@ -43,6 +44,20 @@ struct sockaddr_in* createIPv4Address(char *ip, int port)
     return address;
 }
 
+struct acceptedSocket
+{
+	int fileDescriptor;
+	struct sockaddr_in address;
+	int error;
+	bool acceptedSuccessfully;
+};
+
+//Await a connection on server socket file descriptor
+//When a connection arrives, open a new socket to communicate with it
+struct acceptedSocket* acceptIncomingConnection(int serverSocketFD);
+
+int handleIncomingData(int socketFD);
+
 /*
  * Print error message and exit.
  * @param[in] msg The message to print to console.
@@ -63,8 +78,8 @@ int main(int argc, char *argv[])
 		error("Error opening socket.");
 	}
 
-	struct sockaddr_in *serverAddress = createIPv4Address("", 2000);
 	//Bind using the server socket file descriptor
+	struct sockaddr_in *serverAddress = createIPv4Address("", 2000);
 	int resultBind = bind(serverSocketFD, (struct sockaddr *) serverAddress, sizeof(*serverAddress));
 	if(resultBind < 0)
 	{
@@ -75,24 +90,54 @@ int main(int argc, char *argv[])
 	//Prepare to accept connections on server socket file descriptor
 	int listenResult = listen(serverSocketFD, 10);
 
+	//Wait a connection on server socket file descriptor
+	struct acceptedSocket* clientSocket = acceptIncomingConnection(serverSocketFD);
+
+	handleIncomingData(clientSocket->fileDescriptor);
+
+	close(clientSocket->fileDescriptor);
+	shutdown(serverSocketFD, SHUT_RDWR);
+
+	return 0;
+}
+
+
+struct acceptedSocket* acceptIncomingConnection(int serverSocketFD)
+{
 	printf("Waiting for client connections:...\n");
-	//Await a connection on server socket file descriptor
-	//When a connection arrives, open a new socket to communicate with it
+
 	struct sockaddr_in clientAddress;
 	int clientAddressSize = sizeof(struct sockaddr_in);
 	int clientSocketFD = accept(serverSocketFD,  (struct sockaddr *) &clientAddress, &clientAddressSize);
+
+	struct acceptedSocket* acceptedSocket = malloc(sizeof(struct acceptedSocket));
+	acceptedSocket->fileDescriptor = clientSocketFD;
+	acceptedSocket->address = clientAddress;
+	
 	if(clientSocketFD < 0)
 	{
-		error("Error on Accept.");
+		acceptedSocket->error = clientSocketFD;
+		acceptedSocket->acceptedSuccessfully = false;
+		printf("Error on Accept.\n");
 	}
-	printf("Accepted connection on server socket listen.\n");
-	printf("Opened client address file descriptor.\n");
+	else
+	{
+		acceptedSocket->error = 0;
+		acceptedSocket->acceptedSuccessfully = true;
+		printf("Accepted connection on server socket listen.\n");
+		printf("Opened client address file descriptor.\n");
+	}
 
+	return acceptedSocket;
+}
+
+int handleIncomingData(int socketFD)
+{
 	char buffer[1024];
 
 	while(true)
 	{
-		ssize_t amountReceived = recv(clientSocketFD, buffer, 1024, 0);
+		ssize_t amountReceived = recv(socketFD, buffer, 1024, 0);
 
 		if(amountReceived > 0)
 		{
@@ -105,12 +150,4 @@ int main(int argc, char *argv[])
 			break;		
 		}
 	}
-
-
-
-	close(clientSocketFD);
-	shutdown(serverSocketFD, SHUT_RDWR);
-
-	return 0;
 }
-
