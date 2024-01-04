@@ -1,10 +1,62 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+
+// #include "util/socketUtil.h"
+#include <arpa/inet.h>
+#include <string.h>
+#include <malloc.h>
+
+struct sockaddr_in* createIPv4Address(char *ip, int port);
+
+
+int createTCPIpv4Socket();
+
+int createTCPIpv4Socket()
+{
+    int returnVal = 0;
+
+    returnVal = socket(AF_INET, SOCK_STREAM, 0); 
+    
+    return returnVal;
+}
+
+struct sockaddr_in* createIPv4Address(char *ip, int port)
+{
+    struct sockaddr_in  *address = malloc(sizeof(struct sockaddr_in));
+    address->sin_family = AF_INET;
+    address->sin_port = htons(port);
+
+    if(strlen(ip) ==0)
+    {
+        address->sin_addr.s_addr = INADDR_ANY;
+    }
+    else
+    {
+        inet_pton(AF_INET, ip, &address->sin_addr.s_addr);
+    }
+
+    return address;
+}
+
+struct acceptedSocket
+{
+	int fileDescriptor;
+	struct sockaddr_in address;
+	int error;
+	bool acceptedSuccessfully;
+};
+
+//Await a connection on server socket file descriptor
+//When a connection arrives, open a new socket to communicate with it
+struct acceptedSocket* acceptIncomingConnection(int serverSocketFD);
+
+int handleIncomingData(int socketFD);
 
 /*
  * Print error message and exit.
@@ -18,67 +70,84 @@ void error(const char *msg)
 
 int main(int argc, char *argv[])
 {
-	int sockfd, newsockfd, portno, n;
-	char buffer[255];
-	struct sockaddr_in serv_addr, cli_addr;
-	
-	//Check call arguments
-	if(argc < 2)
-	{
-		fprintf(stderr, "Port number not provided, Program terminated /r/n");
-		exit(1);
-	}
 
 	//Create file descriptor for server socket
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if(sockfd < 0)
+	int serverSocketFD = createTCPIpv4Socket();
+	if(serverSocketFD < 0)
 	{
 		error("Error opening socket.");
 	}
 
-	//Port number, get from arguments
-	portno = atoi(argv[1]);
-
-	//Initialize sockaddr structure
-	bzero((char *) &serv_addr, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
-	serv_addr.sin_port = htons(portno);
-
 	//Bind using the server socket file descriptor
-	if( bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+	struct sockaddr_in *serverAddress = createIPv4Address("", 2000);
+	int resultBind = bind(serverSocketFD, (struct sockaddr *) serverAddress, sizeof(*serverAddress));
+	if(resultBind < 0)
+	{
 		error("Binding Failed.");
+	}
+	printf("socket was bound successfully.\n");
 
 	//Prepare to accept connections on server socket file descriptor
-	listen(sockfd, 5);
+	int listenResult = listen(serverSocketFD, 10);
 
-	//Await a connection on server socket file descriptor
-	//When a connection arrives, open a new socket to communicate with it
-	socklen_t clilen = sizeof(cli_addr);
-	newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-	if(newsockfd < 0)
-		error("Error on Accept.");
+	//Wait a connection on server socket file descriptor
+	struct acceptedSocket* clientSocket = acceptIncomingConnection(serverSocketFD);
 
-	FILE *fp;
+	handleIncomingData(clientSocket->fileDescriptor);
 
-	int ch = 0;
-	fp = fopen("glad_received.txt", "w");
-
-	int words;
-	read(newsockfd, &words, sizeof(int));
-
-	while(ch != words)
-	{
-		read(newsockfd, buffer, 255);
-		fprintf(fp, "%s ", buffer);
-		ch++;
-	}
-
-	printf("The file has been received successfully. It is saved by the name glad_received.txt.");
-
-	close(newsockfd);
-	close(sockfd);
+	close(clientSocket->fileDescriptor);
+	shutdown(serverSocketFD, SHUT_RDWR);
 
 	return 0;
 }
 
+
+struct acceptedSocket* acceptIncomingConnection(int serverSocketFD)
+{
+	printf("Waiting for client connections:...\n");
+
+	struct sockaddr_in clientAddress;
+	int clientAddressSize = sizeof(struct sockaddr_in);
+	int clientSocketFD = accept(serverSocketFD,  (struct sockaddr *) &clientAddress, &clientAddressSize);
+
+	struct acceptedSocket* acceptedSocket = malloc(sizeof(struct acceptedSocket));
+	acceptedSocket->fileDescriptor = clientSocketFD;
+	acceptedSocket->address = clientAddress;
+	
+	if(clientSocketFD < 0)
+	{
+		acceptedSocket->error = clientSocketFD;
+		acceptedSocket->acceptedSuccessfully = false;
+		printf("Error on Accept.\n");
+	}
+	else
+	{
+		acceptedSocket->error = 0;
+		acceptedSocket->acceptedSuccessfully = true;
+		printf("Accepted connection on server socket listen.\n");
+		printf("Opened client address file descriptor.\n");
+	}
+
+	return acceptedSocket;
+}
+
+int handleIncomingData(int socketFD)
+{
+	char buffer[1024];
+
+	while(true)
+	{
+		ssize_t amountReceived = recv(socketFD, buffer, 1024, 0);
+
+		if(amountReceived > 0)
+		{
+			buffer[amountReceived] = 0;
+			printf("Response was %s\n", buffer);
+		}
+
+		if(amountReceived == 0)
+		{
+			break;		
+		}
+	}
+}

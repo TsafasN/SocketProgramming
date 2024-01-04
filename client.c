@@ -9,6 +9,7 @@ argv[2] portno
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
@@ -16,6 +17,42 @@ argv[2] portno
 #include <netinet/in.h>
 #include <netdb.h>
 #include <ctype.h>
+
+// #include "util/socketUtil.h"
+#include <arpa/inet.h>
+#include <string.h>
+#include <malloc.h>
+
+struct sockaddr_in* createIPv4Address(char *ip, int port);
+
+int createTCPIpv4Socket();
+
+int createTCPIpv4Socket()
+{
+    int returnVal = 0;
+
+    returnVal = socket(AF_INET, SOCK_STREAM, 0); 
+    
+    return returnVal;
+}
+
+struct sockaddr_in* createIPv4Address(char *ip, int port)
+{
+    struct sockaddr_in  *address = malloc(sizeof(struct sockaddr_in));
+    address->sin_family = AF_INET;
+    address->sin_port = htons(port);
+
+    if(strlen(ip) ==0)
+    {
+        address->sin_addr.s_addr = INADDR_ANY;
+    }
+    else
+    {
+        inet_pton(AF_INET, ip, &address->sin_addr.s_addr);
+    }
+
+    return address;
+}
 
 void error(const char *msg)
 {
@@ -25,70 +62,45 @@ void error(const char *msg)
 
 int main(int argc, char *argv[])
 {
-	int sockfd, portno, n;
-	struct sockaddr_in serv_addr;
-	struct hostent *server;
-	char buffer[256];
-
-	//Check call arguments
-	if(argc < 3)
-	{
-		fprintf(stderr, "usage %s hostname port\r\n", argv[0]);
-		exit(1);
-	}
 
 	//Create file descriptor for client socket
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if(sockfd < 0)
-		error("ERROR opening socket");
-	
-	//Server ip address, get from arguments
-	server = gethostbyname(argv[1]);
-	if(server == NULL)
-		fprintf(stderr, "Error, no such host");
+	int socketFD = createTCPIpv4Socket();
+	if(socketFD < 0)
+	{
+		error("Error opening socket.");
+	}
 
-	//Port number, get from arguments
-	portno = atoi(argv[2]);
-
-	//Initialize sockaddr structure
-	bzero((char *) &serv_addr, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	bcopy((char *)server->h_addr, (char *) &serv_addr.sin_addr.s_addr, server->h_length);
-	serv_addr.sin_port = htons(portno);
+	struct sockaddr_in *address = createIPv4Address("127.0.0.1", 2000);
 
 	//Connect using the client socket file descriptor
-	if(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
-		error("Connection Failed");
-
-	bzero(buffer, 255);
-
-	FILE *f;
-	int words = 0;
-
-	char c;
-
-	f = fopen("glad.txt", "r");
-	while((c = getc(f)) != EOF)
+	int resultConnect = connect(socketFD, (struct sockaddr *) address, sizeof(*address));
+	if(resultConnect < 0)
 	{
-		fscanf(f, "%s", buffer);
-		if(isspace(c) || c=='\t')
-			words++;
+		error("Connection Failed");
 	}
 	
-	write(sockfd, &words, sizeof(int));
-	rewind(f);
-
-	char ch;
-	while(ch != EOF)
+	char *line = NULL;
+	size_t lineSize = 0;
+	printf("type and we will send (type exit)...\n");
+	
+	while(true)
 	{
-		fscanf(f, "%s", buffer);
-		write(sockfd, buffer, 255);
-		ch = fgetc(f);
+		printf("\n");
+
+		ssize_t charCount = getline(&line, &lineSize, stdin);
+
+		if (charCount > 0)
+		{
+			if(strcmp(line,"exit\n") == 0)
+			{
+				break;
+			}
+
+			ssize_t amountWasSent = send(socketFD, line, charCount, 0);
+		}
 	}
 
-	printf("The file has been successfully sent. Thank you.");
-
-	close(sockfd);
+	close(socketFD);
 	return 0;
 }
 
