@@ -1,0 +1,11 @@
+stages:
+  - test
+
+test-runner:
+  stage: test
+  tags:
+    - pi
+  script:
+    - echo "✅ Running on $(uname -a)"
+    - echo "✅ Current user: $(whoami)"
+    - echo "✅ GitLab CI is working!"
