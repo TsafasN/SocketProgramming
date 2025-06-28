@@ -7,5 +7,5 @@ test-runner:
     - pi
   script:
     - echo "✅ Running on $(uname -a)"
-    - echo "✅ Current user: $(whoami)"
+    - echo "✅ Current user $(whoami)"
     - echo "✅ GitLab CI is working!"
