@@ -4,7 +4,7 @@ stages:
 test-runner:
   stage: test
   tags:
-    - pi
+    - rpihometag
   script:
     - echo "✅ Running on $(uname -a)"
     - echo "✅ Current user $(whoami)"
