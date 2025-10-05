@@ -4,6 +4,9 @@
         "string.h": "c",
         "stdio.h": "c",
         "stdlib.h": "c",
-        "stddef.h": "c"
+        "stddef.h": "c",
+        "socket.h": "c",
+        "in.h": "c",
+        "malloc.h": "c"
     }
 }
